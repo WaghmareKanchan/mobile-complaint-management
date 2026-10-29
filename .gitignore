@@ -1,0 +1,23 @@
+# secrets
+.env
+
+# python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# virtual environment (yours is named env)
+env/
+venv/
+.venv/
+
+# databases and logs
+*.db
+*.sqlite3
+*.log
+
+# editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
