@@ -6,3 +6,4 @@ cryptography
 python-multipart
 httpx
 pytest
+openpyxl

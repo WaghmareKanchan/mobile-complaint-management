@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, UploadFile, File
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, Response, FileResponse
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import Complaint
+from app.models import Complaint, ComplaintFile
 from app.schemas import complaint as s
-from app.services import workflow as w, bulk
+from app.services import workflow as w, bulk, files as fs
 from app.services.errors import FlowError
 
 router = APIRouter(prefix="/api/complaints", tags=["complaints"])
@@ -24,10 +24,12 @@ def list_all(status: str | None = None, db: Session = Depends(get_db)):
 
 @router.post("/bulk")
 def bulk_upload(file: UploadFile = File(...), db: Session = Depends(get_db)):
-    return bulk.process(db, file.file.read())
+    return bulk.process(db, file.file.read(), file.filename or "")
 
-@router.get("/bulk/template", response_class=PlainTextResponse)
-def template(): return bulk.TEMPLATE
+@router.get("/bulk/template.xlsx")
+def template_xlsx():
+    return Response(bulk.template_xlsx(), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": "attachment; filename=complaints_template.xlsx"})
 
 @router.get("/{id}", response_model=s.ComplaintOut)
 def get_one(id: int, db: Session = Depends(get_db)): return get_or_404(db, id)
@@ -47,7 +49,15 @@ action("quote-decision", s.DecisionIn, w.quote_decision)
 action("repair", s.RepairIn, w.finish_repair)
 action("replacement", s.ReplacementIn, w.approve_replacement)
 action("dispatch", s.DispatchIn, w.dispatch)
-action("feedback", s.FeedbackIn, w.feedback)
+action("handover", s.HandoverIn, w.handover)
 
-@router.post("/{id}/handover", response_model=s.ComplaintOut)
-def handover(id: int, db: Session = Depends(get_db)): return w.handover(db, get_or_404(db, id))
+
+@router.post("/{id}/files", response_model=s.FileOut)
+def upload_file(id: int, file: UploadFile = File(...), db: Session = Depends(get_db)):
+    return fs.save(db, get_or_404(db, id), file)
+
+@router.get("/{id}/files/{fid}")
+def get_file(id: int, fid: int, db: Session = Depends(get_db)):
+    f = db.get(ComplaintFile, fid)
+    if not f or f.complaint_id != id: raise FlowError(404, "E00", "File not found")
+    return FileResponse(fs.UPLOAD_DIR / f.stored_name, media_type=f.content_type)
