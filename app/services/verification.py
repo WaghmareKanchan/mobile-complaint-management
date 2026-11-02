@@ -14,7 +14,7 @@ def verify(db, imei, serial):
     open_c = db.query(Complaint).filter(Complaint.imei == imei,
              ~Complaint.status.in_(["CLOSED", "ON_HOLD"])).first()
     if open_c:
-        raise FlowError(409, "E04", f"DUPLICATE: open complaint #{open_c.id} exists (status {open_c.status})")
+            raise FlowError(409, "E04", f"DUPLICATE: open complaint #{open_c.id} exists (status {open_c.status})", {"existing_id": open_c.id})
     if dev.blacklisted:
         raise FlowError(403, "E05", "BLOCKED: IMEI blacklisted or stolen. Inform manufacturer")
     return None, dev, ""

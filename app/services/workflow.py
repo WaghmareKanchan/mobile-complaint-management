@@ -1,5 +1,7 @@
-from datetime import datetime, timedelta
-from app.models import Complaint, History
+import secrets
+from datetime import datetime, timedelta, date
+from sqlalchemy import func
+from app.models import Complaint, History, Device
 from app.services.errors import FlowError
 from app.services.verification import verify
 from app.services.warranty import warranty_valid
@@ -28,11 +30,15 @@ def register(db, d, batch_id=None):
     ok = warranty_valid(dev) and not d.customer_caused
     c.warranty_status = "IN_WARRANTY" if ok else "OUT_OF_WARRANTY"
     move(db, c, "VERIFIED", "In-warranty: free repair/replacement" if ok else "Out-of-warranty: chargeable (quote after diagnosis)")
-    prior = db.query(Complaint).filter(Complaint.imei == d.imei, Complaint.id != c.id,
-                                       Complaint.status == "CLOSED").count()
-    if ok and (d.dead_on_arrival or prior >= 2):
+    age = (date.today() - dev.sale_date).days if dev.sale_date else None
+    doa = d.dead_on_arrival and age is not None and age <= 7
+    same = db.query(Complaint).filter(Complaint.imei == d.imei, Complaint.id != c.id, Complaint.status == "CLOSED",
+             func.lower(func.trim(Complaint.issue)) == d.issue.strip().lower()).count()
+    if d.dead_on_arrival and not doa:
+        move(db, c, "VERIFIED", f"Dead-on-arrival ignored: phone sold {age} days ago (limit 7)")
+    if ok and (doa or same >= 2):
         c.fast_track = True
-        move(db, c, "FAST_TRACK", "Dead on arrival / same issue 3 times: fast-track replacement")
+        move(db, c, "FAST_TRACK", "Dead on arrival (7 days) or same issue 3 times: fast-track replacement")
     else:
         move(db, c, "FIRST_LEVEL_HELP", "Dealer: restart, other charger, update, safe mode, backup+reset")
     db.commit(); return c
@@ -46,19 +52,25 @@ def guidance(db, c, solved):
 def triage(db, c, issue_code, priority):
     require(c, "FIRST_LEVEL_HELP")
     c.issue_code, c.priority, c.sla_due = issue_code, priority, sla_due(priority)
-    note = f"{issue_code} / {priority}, SLA {c.sla_due:%Y-%m-%d %H:%M}"
+    base = f"{issue_code} / {priority}, SLA {c.sla_due:%Y-%m-%d %H:%M}"
     if is_urgent(priority):
-        note = "SAFETY: STOP using, STOP charging, keep from heat. Urgent pickup within 24h. " + note
+        c.pickup_type = "URGENT"
+        note = "STOP using, STOP charging, keep away from heat. Urgent pickup/courier within 24h. " + base
+    else:
+        c.pickup_type = "NORMAL"
+        note = "Dealer acknowledged with expected date (SLA), normal pickup. " + base
     move(db, c, "TRIAGED", note)
     db.commit(); return c
 
-def receive(db, c, customer_damage):
+def receive(db, c, customer_damage, condition_notes=None):
     require(c, "TRIAGED")
+    c.job_card_no = f"JC-{c.id:06d}"
+    c.condition_notes = condition_notes
+    note = f"Job card {c.job_card_no} created." + (f" Condition: {condition_notes}" if condition_notes else "")
     if customer_damage and c.warranty_status == "IN_WARRANTY":
         c.warranty_status = "OUT_OF_WARRANTY"
-        move(db, c, "DIAGNOSING", "Customer damage found: re-classified OUT_OF_WARRANTY")
-    else:
-        move(db, c, "DIAGNOSING", "Received at service centre, job card created")
+        note = "Customer damage found: re-classified OUT_OF_WARRANTY, customer informed. " + note
+    move(db, c, "DIAGNOSING", note)
     db.commit(); return c
 
 def diagnose(db, c, repairable):
@@ -91,30 +103,41 @@ def finish_repair(db, c, qc_passed):
     else: move(db, c, "REPAIRING", "QC failed: repair again")
     db.commit(); return c
 
-def approve_replacement(db, c, new_imei):
+def approve_replacement(db, c, new_imei, new_serial, collect_old=True):
     require(c, "FAST_TRACK", "REPLACEMENT_PENDING")
     if not valid_imei(new_imei):
         raise FlowError(422, "E01", "New IMEI is invalid")
-    c.new_imei = new_imei
-    move(db, c, "REPLACEMENT_APPROVED", f"Replacement linked to new IMEI {new_imei}, new warranty")
+    if db.query(Device).filter_by(imei=new_imei).first():
+        raise FlowError(409, "E08", "New IMEI is already in the Manufacturing DB")
+    old = db.query(Device).filter_by(imei=c.imei).first()
+    db.add(Device(imei=new_imei, serial=new_serial, model=(old.model if old else c.model) or "",
+                  sale_date=date.today(), warranty_months=(old.warranty_months if old else 12)))
+    c.new_imei, c.old_phone_collected = new_imei, collect_old
+    move(db, c, "REPLACEMENT_APPROVED", f"New IMEI {new_imei} added to Manufacturing DB with new warranty. Old phone collected: {'yes' if collect_old else 'no'}")
     db.commit(); return c
 
 def dispatch(db, c, tracking_no):
     require(c, "QC_PASSED", "REPLACEMENT_APPROVED")
-    c.tracking_no = tracking_no
-    move(db, c, "DISPATCHED", f"Courier {tracking_no}")
+    c.tracking_no, c.handover_otp = tracking_no, f"{secrets.randbelow(10000):04d}"
+    move(db, c, "DISPATCHED", f"Courier {tracking_no}. Handover OTP {c.handover_otp} (demo: SMS not connected)")
     db.commit(); return c
 
-def handover(db, c):
+def handover(db, c, otp):
     require(c, "DISPATCHED")
+    if otp.strip() != c.handover_otp:
+        raise FlowError(422, "E09", "Wrong OTP: ask the customer for the code sent to them")
     c.delivered_at = datetime.utcnow()
-    move(db, c, "DELIVERED", "Customer checked, OTP/signature taken")
+    move(db, c, "DELIVERED", "Customer checked phone, OTP verified")
     db.commit(); return c
 
-def feedback(db, c, satisfied):
+def feedback(db, c, satisfied, rating=None, comment=None):
     require(c, "DELIVERED")
-    if satisfied: move(db, c, "CLOSED", "Customer satisfied")
+    if rating is not None and not 1 <= rating <= 5:
+        raise FlowError(422, "E10", "Rating must be 1 to 5")
+    c.feedback_rating, c.feedback_text = rating, comment
+    note = (f"Rating {rating}. " if rating else "") + (comment or "")
+    if satisfied: move(db, c, "CLOSED", ("Customer satisfied. " + note).strip())
     elif datetime.utcnow() - c.delivered_at > timedelta(days=7):
         raise FlowError(409, "E07", "Reopen window (7 days) has passed")
-    else: move(db, c, "REOPENED", "Not satisfied: back to diagnosis")
+    else: move(db, c, "REOPENED", ("Not satisfied: back to diagnosis. " + note).strip())
     db.commit(); return c

@@ -16,7 +16,7 @@ app = FastAPI(title="Mobile Complaint Management", lifespan=lifespan)
 
 @app.exception_handler(FlowError)
 async def flow_error(_: Request, e: FlowError):
-    return JSONResponse(status_code=e.status_code, content={"detail": {"code": e.code, "message": e.message}})
+    return JSONResponse(status_code=e.status_code, content={"detail": {"code": e.code, "message": e.message, **e.extra}})
 
 app.include_router(complaints.router)
 app.include_router(devices.router)

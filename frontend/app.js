@@ -8,7 +8,13 @@ async function api(path, opts = {}) {
   return d;
 }
 const post = (path, body) => api(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-function say(text, err) { $('#msg').innerHTML = `<p class="${err ? 'err' : ''}"></p>`; $('#msg p').textContent = text; }
+function say(text, err, openId) {
+  $('#msg').innerHTML = `<p class="${err ? 'err' : ''}"><span></span></p>`; $('#msg span').textContent = text;
+  if (openId) { const b = document.createElement('button'); b.className = 'act alt'; b.style.marginLeft = '1rem';
+    b.textContent = 'Open complaint #' + openId; b.onclick = () => { document.querySelector('[data-tab=list]').click(); openDetail(openId); };
+    $('#msg p').appendChild(b); }
+}
+const sayErr = e => say(errText(e), true, e && e.existing_id);
 const errText = e => e && e.code ? `${e.code}: ${e.message}` : JSON.stringify(e);
 const fmt = d => d ? new Date(d + 'Z').toLocaleString() : '';
 const tone = s => /CLOSED|DELIVERED|QC_PASSED|VERIFIED/.test(s) ? 'ok' : /HOLD/.test(s) ? 'bad' : /QUOTE|FAST|REOPEN|REPLACEMENT/.test(s) ? 'warn' : '';
@@ -35,20 +41,22 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, m => ({ '&': '&amp;', '<': '
 
 // next-step buttons per status: [label, endpoint, fixed values, fields]
 const P = ['Critical', 'High', 'Medium', 'Low'];
+const REPL = [['new_imei', 'text', 'New IMEI'], ['new_serial', 'text', 'New serial'], ['collect_old', 'checkbox', 'Old phone collected']];
+const FB = [['rating', 'number', 'Rating 1-5 (optional)'], ['comment', 'text', 'Comment (optional)']];
 const ACTIONS = {
   FIRST_LEVEL_HELP: [['Problem solved', 'guidance', { solved: true }], ['Not solved: triage', 'triage', {}, [['issue_code', 'text', 'Issue code'], ['priority', P, 'Priority']]]],
-  FAST_TRACK: [['Approve replacement', 'replacement', {}, [['new_imei', 'text', 'New IMEI']]]],
-  TRIAGED: [['Phone received', 'receive', {}, [['customer_damage', 'checkbox', 'Customer-caused damage found']]]],
+  FAST_TRACK: [['Approve replacement', 'replacement', {}, REPL]],
+  TRIAGED: [['Phone received', 'receive', {}, [['customer_damage', 'checkbox', 'Customer-caused damage found'], ['condition_notes', 'text', 'Condition notes (optional)']]]],
   DIAGNOSING: [['Repairable', 'diagnose', { repairable: true }], ['Not repairable', 'diagnose', { repairable: false }]],
   REOPENED: [['Repairable', 'diagnose', { repairable: true }], ['Not repairable', 'diagnose', { repairable: false }]],
   QUOTE_PENDING: [['Send quote', 'quote', {}, [['amount', 'number', 'Parts + labour']]]],
   QUOTE_SENT: [['Customer approves', 'quote-decision', { approved: true }], ['Customer declines', 'quote-decision', { approved: false }]],
   REPAIRING: [['QC passed', 'repair', { qc_passed: true }], ['QC failed', 'repair', { qc_passed: false }]],
-  REPLACEMENT_PENDING: [['Approve replacement', 'replacement', {}, [['new_imei', 'text', 'New IMEI']]]],
+  REPLACEMENT_PENDING: [['Approve replacement', 'replacement', {}, REPL]],
   QC_PASSED: [['Dispatch to dealer', 'dispatch', {}, [['tracking_no', 'text', 'Courier tracking no.']]]],
   REPLACEMENT_APPROVED: [['Dispatch to dealer', 'dispatch', {}, [['tracking_no', 'text', 'Courier tracking no.']]]],
-  DISPATCHED: [['Hand over to customer', 'handover', {}]],
-  DELIVERED: [['Customer satisfied', 'feedback', { satisfied: true }], ['Not satisfied: reopen', 'feedback', { satisfied: false }]],
+  DISPATCHED: [['Hand over to customer', 'handover', {}, [['otp', 'text', 'Customer OTP']]]],
+  DELIVERED: [['Customer satisfied', 'feedback', { satisfied: true }, FB], ['Not satisfied: reopen', 'feedback', { satisfied: false }, FB]],
 };
 
 async function openDetail(id) {
@@ -58,61 +66,87 @@ async function openDetail(id) {
     <p>${esc(c.customer_name)}, ${esc(c.phone)}<br>${esc(c.model || '')} <small>${esc(c.imei)}</small></p>
     <p>${esc(c.issue)}</p>
     <p><small>Warranty: ${c.warranty_status || 'n/a'} ${c.priority ? ' | Priority ' + c.priority : ''} ${c.sla_due ? ' | SLA ' + fmt(c.sla_due) : ''}
-    ${c.quote_amount ? ' | Quote ' + c.quote_amount : ''} ${c.tracking_no ? ' | Tracking ' + esc(c.tracking_no) : ''}</small></p>
+    ${c.quote_amount ? ' | Quote ' + c.quote_amount : ''} ${c.tracking_no ? ' | Tracking ' + esc(c.tracking_no) : ''}
+    ${c.job_card_no ? ' | Job card ' + esc(c.job_card_no) : ''} ${c.pickup_type ? ' | Pickup ' + c.pickup_type : ''}${c.new_imei ? ' | New IMEI ' + esc(c.new_imei) : ''}</small></p>
     <div class="actions">${acts.map((a, i) => `<button class="act ${i ? 'alt' : ''}" data-i="${i}">${a[0]}</button>`).join('') || '<small>No further steps.</small>'}</div>
     <div id="sub"></div>
+    <h3>Photos / videos</h3>
+    <div class="files">${c.files.map(f => f.kind === 'photo'
+      ? `<a href="/api/complaints/${c.id}/files/${f.id}" target="_blank"><img src="/api/complaints/${c.id}/files/${f.id}" alt="${esc(f.original_name)}" title="${esc(f.stage)}"></a>`
+      : `<video controls preload="metadata" src="/api/complaints/${c.id}/files/${f.id}" title="${esc(f.stage)}"></video>`).join('') || '<small>No files yet.</small>'}</div>
+    <form id="f-up" class="sub"><input type="file" id="up-file" multiple required accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"><button class="act alt">Upload</button></form>
     <h3>History</h3><ol class="hist">${c.history.map(h => `<li>${chip(h.status)} <small>${fmt(h.at)}</small><br>${esc(h.note)}</li>`).join('')}</ol>`;
-  document.querySelectorAll('.act').forEach(b => b.onclick = () => runAction(c, acts[+b.dataset.i]));
+  document.querySelectorAll('.actions .act').forEach(b => b.onclick = () => runAction(c, acts[+b.dataset.i]));
+  $('#f-up').onsubmit = async e => {
+    e.preventDefault();
+    try { await uploadFiles(c.id, $('#up-file').files); say('File uploaded.'); openDetail(c.id); } catch (err) { sayErr(err); }
+  };
   loadList();
 }
 
 function runAction(c, [label, path, fixed, fields]) {
   const send = async body => {
     try { await post(`/complaints/${c.id}/${path}`, body); say(label + ': done'); openDetail(c.id); }
-    catch (e) { say(errText(e), true); }
+    catch (e) { sayErr(e); }
   };
   if (!fields) return send(fixed);
   $('#sub').innerHTML = `<form class="sub">${fields.map(([n, t, l]) => Array.isArray(t)
     ? `<label>${l}<select name="${n}">${t.map(o => `<option>${o}</option>`).join('')}</select></label>`
     : t === 'checkbox' ? `<label class="chk"><input type="checkbox" name="${n}"> ${l}</label>`
-    : `<label>${l}<input name="${n}" type="${t}" required></label>`).join('')}<button class="act">${label}</button></form>`;
+    : `<label>${l}<input name="${n}" type="${t}" ${/optional/.test(l) ? '' : 'required'}></label>`).join('')}<button class="act">${label}</button></form>`;
   $('#sub form').onsubmit = e => {
     e.preventDefault(); const body = { ...fixed };
-    fields.forEach(([n, t]) => { const el = e.target[n]; body[n] = t === 'checkbox' ? el.checked : t === 'number' ? +el.value : el.value; });
+    fields.forEach(([n, t]) => { const el = e.target[n]; body[n] = t === 'checkbox' ? el.checked : t === 'number' ? (el.value === '' ? null : +el.value) : (el.value || null); });
     send(body);
   };
 }
 
 // ---- forms
+async function uploadFiles(id, files) {
+  for (const f of files) {
+    const fd = new FormData(); fd.append('file', f);
+    await api(`/complaints/${id}/files`, { method: 'POST', body: fd });
+  }
+}
 const formData = (f, bools) => { const o = Object.fromEntries(new FormData(f)); bools.forEach(b => o[b] = f[b].checked); return o; };
 $('#f-new').onsubmit = async e => {
   e.preventDefault();
   try {
     const c = await post('/complaints', formData(e.target, ['dead_on_arrival', 'customer_caused']));
     say(c.error_code ? `Complaint #${c.id} is on hold (${c.error_code}).` : `Complaint #${c.id} registered.`);
+    const files = $('#new-files').files;
+    if (files.length) { try { await uploadFiles(c.id, files); } catch (up) { sayErr(up); } }
     e.target.reset(); document.querySelector('[data-tab=list]').click(); openDetail(c.id);
-  } catch (err) { say(errText(err), true); }
+  } catch (err) { sayErr(err); }
 };
 $('#f-bulk').onsubmit = async e => {
   e.preventDefault();
   try {
     const r = await api('/complaints/bulk', { method: 'POST', body: new FormData(e.target) });
-    say(`Batch ${r.batch_id}: ${r.accepted} of ${r.rows.length} rows accepted.`);
+    say(`Batch ${r.batch_id}: ${r.accepted} of ${r.rows.length} rows accepted.`); lastBulk = r;
+    $('#err-report').hidden = r.rows.every(x => x.ok);
     $('#bulk-res').innerHTML = '<tr><th>Row</th><th>Result</th><th>Detail</th></tr>' + r.rows.map(x =>
       `<tr><td>${x.row}</td><td>${x.ok ? 'Accepted #' + x.id : 'Rejected ' + (x.code || '')}</td><td>${esc(x.message || x.status || '')}</td></tr>`).join('');
-  } catch (err) { say(errText(err), true); }
+  } catch (err) { sayErr(err); }
+};
+let lastBulk = null;
+$('#err-report').onclick = () => {
+  const rej = lastBulk.rows.filter(x => !x.ok);
+  const csv = 'row,imei,error_code,message\n' + rej.map(x => [x.row, x.imei || '', x.code || '', '"' + (x.message || x.status || '').replace(/"/g, '""') + '"'].join(',')).join('\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.download = 'error_report_' + lastBulk.batch_id + '.csv'; a.click();
 };
 $('#f-dev').onsubmit = async e => {
   e.preventDefault();
   try { await post('/devices', { ...formData(e.target, ['blacklisted']), warranty_months: +e.target.warranty_months.value });
-    say('Device added.'); e.target.reset(); loadDevices(); } catch (err) { say(errText(err), true); }
+    say('Device added.'); e.target.reset(); loadDevices(); } catch (err) { sayErr(err); }
 };
 async function loadDevices() {
   const d = await api('/devices');
   $('#dev-tbl').innerHTML = '<tr><th>IMEI</th><th>Serial</th><th>Model</th><th>Sold</th><th>Warranty</th><th>Blacklisted</th></tr>' +
     d.map(x => `<tr><td>${x.imei}</td><td>${esc(x.serial)}</td><td>${esc(x.model)}</td><td>${x.sale_date}</td><td>${x.warranty_months} mo</td><td>${x.blacklisted ? 'Yes' : 'No'}</td></tr>`).join('');
 }
-
+// ---- Generate a valid IMEI (15 digits with a correct check digit)
 function generateImei() {
   const d = '35' + Array.from({ length: 12 }, () => Math.floor(Math.random() * 10)).join('');
   let sum = 0;
@@ -123,5 +157,7 @@ function generateImei() {
   }
   return d + ((10 - (sum % 10)) % 10);
 }
-$('#gen-imei').onclick = () => { $('#dev-imei').value = generateImei(); };
+const gen = $('#gen-imei');
+if (gen) gen.onclick = () => { $('#dev-imei').value = generateImei(); };
+
 loadList();
