@@ -112,4 +112,16 @@ async function loadDevices() {
   $('#dev-tbl').innerHTML = '<tr><th>IMEI</th><th>Serial</th><th>Model</th><th>Sold</th><th>Warranty</th><th>Blacklisted</th></tr>' +
     d.map(x => `<tr><td>${x.imei}</td><td>${esc(x.serial)}</td><td>${esc(x.model)}</td><td>${x.sale_date}</td><td>${x.warranty_months} mo</td><td>${x.blacklisted ? 'Yes' : 'No'}</td></tr>`).join('');
 }
+
+function generateImei() {
+  const d = '35' + Array.from({ length: 12 }, () => Math.floor(Math.random() * 10)).join('');
+  let sum = 0;
+  for (let i = 0; i < 14; i++) {
+    let n = +d[13 - i];
+    if (i % 2 === 0) { n *= 2; if (n > 9) n -= 9; }
+    sum += n;
+  }
+  return d + ((10 - (sum % 10)) % 10);
+}
+$('#gen-imei').onclick = () => { $('#dev-imei').value = generateImei(); };
 loadList();

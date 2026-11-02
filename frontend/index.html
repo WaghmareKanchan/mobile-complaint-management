@@ -27,8 +27,15 @@
 <table id="bulk-res"></table></section>
 
 <section id="dev" class="tab" hidden><form id="f-dev" class="grid">
-<label>IMEI<input name="imei" required maxlength="15"></label><label>Serial<input name="serial" required></label>
-<label>Model<input name="model" required></label><label>Sale / activation date<input type="date" name="sale_date" required></label>
+<label>IMEI
+  <span style="display:flex;gap:.5rem">
+    <input name="imei" id="dev-imei" required maxlength="15" style="flex:1">
+    <button type="button" id="gen-imei" class="act alt">Generate</button>
+  </span>
+</label>
+<label>Serial<input name="serial" required></label>
+<label>Model<input name="model" required></label>
+<label>Sale / activation date<input type="date" name="sale_date" required></label>
 <label>Warranty months<input type="number" name="warranty_months" value="12"></label>
 <label class="chk"><input type="checkbox" name="blacklisted"> Blacklisted or stolen</label>
 <button class="primary">Add device</button></form><table id="dev-tbl"></table></section>
