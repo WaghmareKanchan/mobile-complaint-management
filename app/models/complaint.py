@@ -24,9 +24,16 @@ class Complaint(Base):
     tracking_no = Column(String(40))
     new_imei = Column(String(15))
     delivered_at = Column(DateTime)
+    pickup_type = Column(String(10))
+    job_card_no = Column(String(20))
+    condition_notes = Column(String(255))
+    old_phone_collected = Column(Boolean, default=False)
+    handover_otp = Column(String(6))
+    feedback_rating = Column(Integer)
+    feedback_text = Column(String(255))
     created_at = Column(DateTime, default=datetime.utcnow)
     history = relationship("History", order_by="History.id", cascade="all, delete-orphan")
-
+    files = relationship("ComplaintFile", order_by="ComplaintFile.id")
 class History(Base):
     __tablename__ = "complaint_history"
     id = Column(Integer, primary_key=True)
@@ -34,3 +41,16 @@ class History(Base):
     status = Column(String(30))
     note = Column(String(255))
     at = Column(DateTime, default=datetime.utcnow)
+
+
+class ComplaintFile(Base):
+    __tablename__ = "complaint_files"
+    id = Column(Integer, primary_key=True)
+    complaint_id = Column(Integer, ForeignKey("complaints.id"), index=True)
+    kind = Column(String(10))
+    stage = Column(String(30))
+    original_name = Column(String(255))
+    stored_name = Column(String(60))
+    content_type = Column(String(40))
+    size = Column(Integer)
+    uploaded_at = Column(DateTime, default=datetime.utcnow)
