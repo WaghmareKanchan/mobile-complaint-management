@@ -17,13 +17,15 @@ def test_full_repair_flow():
         r = c.post("/api/complaints", json={"customer_name": "A", "phone": "1", "imei": IMEI, "serial": "SN1", "issue": "no power"})
         cid = r.json()["id"]; assert r.json()["status"] == "FIRST_LEVEL_HELP"
         assert c.post("/api/complaints", json={"customer_name": "A", "phone": "1", "imei": IMEI, "issue": "x"}).json()["detail"]["code"] == "E04"
+        prev = None
         for path, body, want in [("triage", {"issue_code": "PWR", "priority": "High"}, "TRIAGED"),
             ("receive", {}, "DIAGNOSING"), ("diagnose", {"repairable": True}, "REPAIRING"),
             ("repair", {"qc_passed": True}, "QC_PASSED"), ("dispatch", {"tracking_no": "T1"}, "DISPATCHED"),
-            ("handover", None, "DELIVERED"), ("feedback", {"satisfied": True}, "CLOSED")]:
-            r = c.post(f"/api/complaints/{cid}/{path}", json=body) if body is not None else c.post(f"/api/complaints/{cid}/{path}")
+            ("handover", {}, "DELIVERED"), ("feedback", {"satisfied": True}, "CLOSED")]:
+            if path == "handover": body = {"otp": prev["handover_otp"]}
+            r = c.post(f"/api/complaints/{cid}/{path}", json=body)
             assert r.json()["status"] == want, (path, r.json())
-
+            prev = r.json()
 def test_errors_and_bulk():
     with TestClient(app) as c:
         assert c.post("/api/complaints", json={"customer_name": "A", "phone": "1", "imei": "123", "issue": "x"}).json()["detail"]["code"] == "E01"
