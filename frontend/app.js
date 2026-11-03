@@ -41,7 +41,7 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, m => ({ '&': '&amp;', '<': '
 
 // next-step buttons per status: [label, endpoint, fixed values, fields]
 const P = ['Critical', 'High', 'Medium', 'Low'];
-const REPL = [['new_imei', 'text', 'New IMEI'], ['new_serial', 'text', 'New serial'], ['collect_old', 'checkbox', 'Old phone collected']];
+const REPL = [['new_imei', 'imei', 'New IMEI'], ['new_serial', 'text', 'New serial'], ['collect_old', 'checkbox', 'Old phone collected']];
 const FB = [['rating', 'number', 'Rating 1-5 (optional)'], ['comment', 'text', 'Comment (optional)']];
 const ACTIONS = {
   FIRST_LEVEL_HELP: [['Problem solved', 'guidance', { solved: true }], ['Not solved: triage', 'triage', {}, [['issue_code', 'text', 'Issue code'], ['priority', P, 'Priority']]]],
@@ -95,15 +95,10 @@ function runAction(c, [label, path, fixed, fields]) {
   $('#sub').innerHTML = `<form class="sub">${fields.map(([n, t, l]) => Array.isArray(t)
     ? `<label>${l}<select name="${n}">${t.map(o => `<option>${o}</option>`).join('')}</select></label>`
     : t === 'checkbox' ? `<label class="chk"><input type="checkbox" name="${n}"> ${l}</label>`
+    : t === 'imei' ? `<label>${l}<span style="display:flex;gap:.5rem"><input name="${n}" required maxlength="15" style="flex:1"><button type="button" class="act alt" data-gen="${n}">Generate IMEI</button></span></label>`
     : `<label>${l}<input name="${n}" type="${t}" ${/optional/.test(l) ? '' : 'required'}></label>`).join('')}<button class="act">${label}</button></form>`;
-  
-  const ni = $('#sub input[name="new_imei"]');
-  if (ni) {
-    const g = document.createElement('button'); g.type = 'button'; g.className = 'act alt'; g.textContent = 'Generate IMEI';
-    g.onclick = () => { ni.value = generateImei(); }; ni.insertAdjacentElement('afterend', g);
-  }
-
-    $('#sub form').onsubmit = e => {
+  document.querySelectorAll('#sub [data-gen]').forEach(b => b.onclick = () => { $('#sub input[name="' + b.dataset.gen + '"]').value = generateImei(); });
+  $('#sub form').onsubmit = e => {
     e.preventDefault(); const body = { ...fixed };
     fields.forEach(([n, t]) => { const el = e.target[n]; body[n] = t === 'checkbox' ? el.checked : t === 'number' ? (el.value === '' ? null : +el.value) : (el.value || null); });
     send(body);

@@ -1,4 +1,5 @@
 import secrets
+import re, secrets
 from datetime import datetime, timedelta, date
 from sqlalchemy import func
 from app.models import Complaint, History, Device
@@ -17,6 +18,9 @@ def require(c, *allowed):
         raise FlowError(409, "E99", f"Action not allowed in status {c.status}")
 
 def register(db, d, batch_id=None):
+    d.phone = (d.phone or "").strip()
+    if not re.fullmatch(r"\d{10}", d.phone):
+        raise FlowError(422, "E13", "Phone number must be exactly 10 digits")
     code, dev, msg = verify(db, d.imei, d.serial)
     c = Complaint(customer_name=d.customer_name, phone=d.phone, imei=d.imei, serial=d.serial,
                   model=d.model or (dev.model if dev else None), issue=d.issue, batch_id=batch_id)
