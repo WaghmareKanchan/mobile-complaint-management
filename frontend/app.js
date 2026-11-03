@@ -65,9 +65,11 @@ async function openDetail(id) {
   $('#detail').innerHTML = `<h2>Complaint #${c.id} ${chip(c.status)}</h2>
     <p>${esc(c.customer_name)}, ${esc(c.phone)}<br>${esc(c.model || '')} <small>${esc(c.imei)}</small></p>
     <p>${esc(c.issue)}</p>
-    <p><small>Warranty: ${c.warranty_status || 'n/a'} ${c.priority ? ' | Priority ' + c.priority : ''} ${c.sla_due ? ' | SLA ' + fmt(c.sla_due) : ''}
-    ${c.quote_amount ? ' | Quote ' + c.quote_amount : ''} ${c.tracking_no ? ' | Tracking ' + esc(c.tracking_no) : ''}
-    ${c.job_card_no ? ' | Job card ' + esc(c.job_card_no) : ''} ${c.pickup_type ? ' | Pickup ' + c.pickup_type : ''}${c.new_imei ? ' | New IMEI ' + esc(c.new_imei) : ''}</small></p>
+    <div class="facts">${[['Warranty', c.warranty_status], ['Issue code', c.issue_code], ['Priority', c.priority], ['SLA due', c.sla_due && fmt(c.sla_due)],
+      ['Pickup', c.pickup_type], ['Job card no.', c.job_card_no], ['Condition notes', c.condition_notes], ['Quote amount', c.quote_amount],
+      ['New IMEI', c.new_imei], ['Old phone collected', c.new_imei ? (c.old_phone_collected ? 'Yes' : 'No') : null], ['Courier tracking no.', c.tracking_no],
+      ['Handover OTP (demo)', c.status === 'DISPATCHED' ? c.handover_otp : null], ['Rating', c.feedback_rating], ['Feedback', c.feedback_text]]
+      .filter(([, v]) => v !== null && v !== undefined && v !== '').map(([k, v]) => `<div><small>${k}</small><b>${esc(v)}</b></div>`).join('')}</div>
     <div class="actions">${acts.map((a, i) => `<button class="act ${i ? 'alt' : ''}" data-i="${i}">${a[0]}</button>`).join('') || '<small>No further steps.</small>'}</div>
     <div id="sub"></div>
     <h3>Photos / videos</h3>
@@ -94,7 +96,14 @@ function runAction(c, [label, path, fixed, fields]) {
     ? `<label>${l}<select name="${n}">${t.map(o => `<option>${o}</option>`).join('')}</select></label>`
     : t === 'checkbox' ? `<label class="chk"><input type="checkbox" name="${n}"> ${l}</label>`
     : `<label>${l}<input name="${n}" type="${t}" ${/optional/.test(l) ? '' : 'required'}></label>`).join('')}<button class="act">${label}</button></form>`;
-  $('#sub form').onsubmit = e => {
+  
+  const ni = $('#sub input[name="new_imei"]');
+  if (ni) {
+    const g = document.createElement('button'); g.type = 'button'; g.className = 'act alt'; g.textContent = 'Generate IMEI';
+    g.onclick = () => { ni.value = generateImei(); }; ni.insertAdjacentElement('afterend', g);
+  }
+
+    $('#sub form').onsubmit = e => {
     e.preventDefault(); const body = { ...fixed };
     fields.forEach(([n, t]) => { const el = e.target[n]; body[n] = t === 'checkbox' ? el.checked : t === 'number' ? (el.value === '' ? null : +el.value) : (el.value || null); });
     send(body);
