@@ -52,7 +52,7 @@ def guidance(db, c, solved):
 def triage(db, c, issue_code, priority):
     require(c, "FIRST_LEVEL_HELP")
     c.issue_code, c.priority, c.sla_due = issue_code, priority, sla_due(priority)
-    base = f"{issue_code} / {priority}, SLA {c.sla_due:%Y-%m-%d %H:%M}"
+    base = "Issue code, priority and SLA due date saved."
     if is_urgent(priority):
         c.pickup_type = "URGENT"
         note = "STOP using, STOP charging, keep away from heat. Urgent pickup/courier within 24h. " + base
@@ -66,7 +66,7 @@ def receive(db, c, customer_damage, condition_notes=None):
     require(c, "TRIAGED")
     c.job_card_no = f"JC-{c.id:06d}"
     c.condition_notes = condition_notes
-    note = f"Job card {c.job_card_no} created." + (f" Condition: {condition_notes}" if condition_notes else "")
+    note = "Phone received at service centre, job card created."
     if customer_damage and c.warranty_status == "IN_WARRANTY":
         c.warranty_status = "OUT_OF_WARRANTY"
         note = "Customer damage found: re-classified OUT_OF_WARRANTY, customer informed. " + note
@@ -88,7 +88,7 @@ def diagnose(db, c, repairable):
 def send_quote(db, c, amount):
     require(c, "QUOTE_PENDING")
     c.quote_amount = amount
-    move(db, c, "QUOTE_SENT", f"Quote sent: {amount}")
+    move(db, c, "QUOTE_SENT", "Repair quote sent to customer")
     db.commit(); return c
 
 def quote_decision(db, c, approved):
@@ -113,13 +113,13 @@ def approve_replacement(db, c, new_imei, new_serial, collect_old=True):
     db.add(Device(imei=new_imei, serial=new_serial, model=(old.model if old else c.model) or "",
                   sale_date=date.today(), warranty_months=(old.warranty_months if old else 12)))
     c.new_imei, c.old_phone_collected = new_imei, collect_old
-    move(db, c, "REPLACEMENT_APPROVED", f"New IMEI {new_imei} added to Manufacturing DB with new warranty. Old phone collected: {'yes' if collect_old else 'no'}")
+    move(db, c, "REPLACEMENT_APPROVED", "Replacement approved: new phone added to Manufacturing DB with new warranty")
     db.commit(); return c
 
 def dispatch(db, c, tracking_no):
     require(c, "QC_PASSED", "REPLACEMENT_APPROVED")
     c.tracking_no, c.handover_otp = tracking_no, f"{secrets.randbelow(10000):04d}"
-    move(db, c, "DISPATCHED", f"Courier {tracking_no}. Handover OTP {c.handover_otp} (demo: SMS not connected)")
+    move(db, c, "DISPATCHED", "Dispatched to dealer by courier")
     db.commit(); return c
 
 def handover(db, c, otp):
@@ -135,9 +135,8 @@ def feedback(db, c, satisfied, rating=None, comment=None):
     if rating is not None and not 1 <= rating <= 5:
         raise FlowError(422, "E10", "Rating must be 1 to 5")
     c.feedback_rating, c.feedback_text = rating, comment
-    note = (f"Rating {rating}. " if rating else "") + (comment or "")
-    if satisfied: move(db, c, "CLOSED", ("Customer satisfied. " + note).strip())
+    if satisfied: move(db, c, "CLOSED", "Customer satisfied")
     elif datetime.utcnow() - c.delivered_at > timedelta(days=7):
         raise FlowError(409, "E07", "Reopen window (7 days) has passed")
-    else: move(db, c, "REOPENED", ("Not satisfied: back to diagnosis. " + note).strip())
+    else: move(db, c, "REOPENED", "Not satisfied: back to diagnosis")
     db.commit(); return c
