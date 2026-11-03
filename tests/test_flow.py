@@ -34,3 +34,9 @@ def test_errors_and_bulk():
         csv = b"customer_name,phone,model,imei,serial,issue\nB,2,,123,,bad\nC,3,,356938035643809,,x\n"
         res = c.post("/api/complaints/bulk", files={"file": ("a.csv", csv)}).json()
         assert [x["code"] for x in res["rows"]] == ["E01", "E02"]
+
+def test_phone_must_be_10_digits():
+    with TestClient(app) as c:
+        for bad in ["12345", "98765432101", "98765abcde", ""]:
+            r = c.post("/api/complaints", json={"customer_name": "P", "phone": bad, "imei": "354672100345675", "issue": "x"})
+            assert r.json()["detail"]["code"] == "E13", bad
