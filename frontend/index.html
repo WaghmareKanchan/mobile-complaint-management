@@ -16,7 +16,7 @@
 <aside id="detail"><p class="empty">Select a complaint to see its history and next step.</p></aside></div></section>
 
 <section id="new" class="tab" hidden><form id="f-new" class="grid">
-<label>Customer name<input name="customer_name" required></label><label>Phone<input name="phone" required></label>
+<label>Customer name<input name="customer_name" required></label><label>Phone (10 digits)<input name="phone" required inputmode="numeric" pattern="[0-9]{10}" minlength="10" maxlength="10" title="Enter exactly 10 digits" oninput="this.value=this.value.replace(/\D/g,'')"></label>
 <label>IMEI (15 digits)<input name="imei" required maxlength="15"></label><label>Serial<input name="serial"></label>
 <label class="wide">Issue<textarea name="issue" required></textarea></label>
 <label class="wide">Photos / videos (optional)<input type="file" id="new-files" multiple accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"></label>
