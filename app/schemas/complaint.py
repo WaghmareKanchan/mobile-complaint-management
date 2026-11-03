@@ -59,5 +59,6 @@ class ComplaintOut(BaseModel):
     pickup_type: Optional[str] = None; job_card_no: Optional[str] = None
     condition_notes: Optional[str] = None; old_phone_collected: Optional[bool] = None
     feedback_rating: Optional[int] = None; feedback_text: Optional[str] = None
+    handover_otp: Optional[str] = None
     history: list[HistoryOut] = []
     files: list[FileOut] = []
