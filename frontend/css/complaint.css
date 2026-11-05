@@ -1,0 +1,23 @@
+/* complaint.css: single complaint page (complaint.html) */
+.narrow{max-width:860px}
+.back{display:inline-block;margin-bottom:1rem;color:#0e6e6e;font-weight:600;text-decoration:none}
+.back:hover{text-decoration:underline}
+
+aside{background:#fff;border:1px solid #cbd2da;padding:1rem;border-radius:6px;align-self:start}
+
+.facts{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.6rem;margin:.5rem 0}
+.facts div{background:#f4f6f8;border:1px solid #cbd2da;border-radius:4px;padding:.4rem .6rem}
+.facts small{display:block}
+.facts b{word-break:break-word}
+
+.actions{display:flex;flex-wrap:wrap;gap:.5rem;margin:1rem 0}
+.sub{display:grid;gap:.6rem;margin-top:.5rem}
+.imei-row{display:flex;gap:.5rem}
+.imei-row input{flex:1}
+
+.files{display:flex;flex-wrap:wrap;gap:.5rem;margin:.5rem 0}
+.files img{width:96px;height:96px;object-fit:cover;border-radius:4px;border:1px solid #cbd2da}
+.files video{width:200px;max-width:100%;border-radius:4px;border:1px solid #cbd2da}
+
+ol.hist{padding-left:1.1rem;margin:.5rem 0}
+ol.hist li{margin-bottom:.4rem}

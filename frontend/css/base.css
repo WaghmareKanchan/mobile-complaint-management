@@ -1,0 +1,48 @@
+/* base.css: shared by every page (layout, header, menu, buttons, forms, messages, tables, chips) */
+*{box-sizing:border-box}
+body{margin:0;background:#edeff2;color:#1b2530;font:15px/1.5 "Public Sans",system-ui,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:1rem;align-items:center;justify-content:space-between;padding:1rem 1.5rem;background:#1b2530;color:#fff}
+h1{font-size:1.2rem;margin:0}
+h2{margin:.2rem 0 .8rem}
+main{padding:1.5rem;max-width:1200px;margin:auto}
+[hidden]{display:none!important}
+small{color:#5b6672}
+.empty{color:#5b6672}
+
+/* menu */
+nav{display:flex;flex-wrap:wrap;gap:.25rem}
+nav a{color:#b9c4cf;padding:.5rem .8rem;border-radius:4px;text-decoration:none}
+nav a:hover{background:#2a3644;color:#fff}
+nav a.on{background:#fff;color:#1b2530;font-weight:600}
+nav a:focus-visible{outline:2px solid #fff;outline-offset:2px}
+
+/* focus ring */
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,tr:focus-visible{outline:2px solid #0e6e6e;outline-offset:2px}
+
+/* message bar */
+#msg{margin:0;padding:0 1.5rem}
+#msg p{margin:.8rem auto;max-width:1200px;padding:.6rem 1rem;border-radius:4px;background:#d9efe0;color:#1d6b3a}
+#msg p.err{background:#fbe0dd;color:#b3261e}
+
+/* tables */
+table{width:100%;border-collapse:collapse;background:#fff}
+th,td{text-align:left;padding:.55rem .7rem;border-bottom:1px solid #cbd2da}
+th{font-weight:600;background:#e2e6ea}
+
+/* status chips */
+.chip{display:inline-block;padding:.05rem .5rem;border-radius:99px;font-size:.8rem;font-weight:600;background:#dfe5ea}
+.chip.bad{background:#fbe0dd;color:#b3261e}
+.chip.warn{background:#fdebd0;color:#9a5b00}
+.chip.ok{background:#d9efe0;color:#1d6b3a}
+
+/* forms */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem;background:#fff;padding:1rem;border-radius:6px;border:1px solid #cbd2da;margin-bottom:1rem}
+label{display:flex;flex-direction:column;gap:.25rem;font-weight:600}
+label.chk{flex-direction:row;align-items:center;font-weight:400}
+input,select,textarea{font:inherit;padding:.5rem;border:1px solid #cbd2da;border-radius:4px;background:#fff;min-width:0}
+label>input:not([type=checkbox]):not([type=file]),label>select,label>textarea{width:100%}
+
+/* buttons */
+button.primary,.act{background:#0e6e6e;color:#fff;border:0;padding:.55rem 1rem;border-radius:4px;font:inherit;font-weight:600;cursor:pointer}
+.act.alt{background:#fff;color:#1b2530;border:1px solid #cbd2da}
+a.act{display:inline-block;text-decoration:none}

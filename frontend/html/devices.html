@@ -3,7 +3,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Manufacturing DB · Phone complaints</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700&display=swap">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="/css/base.css"> 
+<link rel="stylesheet" href="/css/devices.css">
 </head>
 <body data-page="dev">
 <header id="top"></header>
@@ -21,11 +22,10 @@
     <label>Model<input name="model" required></label>
     <label>Sale / activation date<input type="date" name="sale_date" required></label>
     <label>Warranty months<input type="number" name="warranty_months" value="12"></label>
-    <label class="chk"><input type="checkbox" name="blacklisted"> Blacklisted or stolen</label>
     <button class="primary">Add device</button>
   </form>
   <table id="dev-tbl"></table>
 </main>
-<script src="common.js"></script>
-<script src="devices.js"></script>
+<script src="/js/common.js"></script>
+<script src="/js/devices.js"></script>
 </body></html>

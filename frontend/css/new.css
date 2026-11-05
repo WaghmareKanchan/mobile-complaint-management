@@ -1,0 +1,3 @@
+/* new.css: New complaint page (new.html) */
+textarea{min-height:70px}
+label.wide{grid-column:1/-1}
