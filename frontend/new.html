@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>New complaint · Phone complaints</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-page="new">
+<header id="top"></header>
+<div id="msg" role="status"></div>
+<main>
+  <h2>New complaint</h2>
+  <form id="f-new" class="grid">
+    <label>Customer name<input name="customer_name" required></label>
+    <label>Phone (10 digits)<input name="phone" required inputmode="numeric" pattern="[0-9]{10}" minlength="10" maxlength="10" title="Enter exactly 10 digits" oninput="this.value=this.value.replace(/\D/g,'')"></label>
+    <label>IMEI (15 digits)<input name="imei" required maxlength="15"></label>
+    <label>Serial<input name="serial"></label>
+    <label class="wide">Issue<textarea name="issue" required></textarea></label>
+    <label class="wide">Photos / videos (optional)<input type="file" id="new-files" multiple accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"></label>
+    <label class="chk"><input type="checkbox" name="dead_on_arrival"> Dead on arrival (within 7 days)</label>
+    <label class="chk"><input type="checkbox" name="customer_caused"> Customer-caused damage (cracked, liquid, tampered)</label>
+    <button class="primary">Register complaint</button>
+  </form>
+</main>
+<script src="common.js"></script>
+<script src="new.js"></script>
+</body></html>
