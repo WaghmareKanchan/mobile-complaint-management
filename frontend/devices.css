@@ -1,0 +1,3 @@
+/* devices.css: Manufacturing DB page (devices.html) */
+.imei-row{display:flex;gap:.5rem}
+.imei-row input{flex:1}

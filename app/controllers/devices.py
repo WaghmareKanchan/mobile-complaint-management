@@ -20,4 +20,4 @@ def add_device(d: DeviceIn, db: Session = Depends(get_db)):
 @router.get("")
 def list_devices(db: Session = Depends(get_db)):
     return [{"imei": x.imei, "serial": x.serial, "model": x.model, "sale_date": x.sale_date,
-             "warranty_months": x.warranty_months, "blacklisted": x.blacklisted} for x in db.query(Device).all()]
+             "warranty_months": x.warranty_months} for x in db.query(Device).all()]

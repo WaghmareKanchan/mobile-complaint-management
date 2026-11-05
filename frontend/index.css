@@ -1,0 +1,3 @@
+/* index.css: Complaints list page */
+#tbl tbody tr{cursor:pointer}
+#tbl tbody tr:hover{background:#e6f2f2}
