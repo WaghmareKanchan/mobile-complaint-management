@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from app.database import Base, engine
 import app.models  # noqa
@@ -20,4 +20,7 @@ async def flow_error(_: Request, e: FlowError):
 
 app.include_router(complaints.router)
 app.include_router(devices.router)
+@app.get("/", include_in_schema=False)
+def home():
+    return RedirectResponse("/html/")
 app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
