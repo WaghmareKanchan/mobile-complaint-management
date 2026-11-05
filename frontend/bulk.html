@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bulk upload · Phone complaints</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-page="bulk">
+<header id="top"></header>
+<div id="msg" role="status"></div>
+<main>
+  <h2>Bulk upload</h2>
+  <p>Download the template, fill one row per phone, then upload it. Every phone must already be in the Manufacturing DB.</p>
+  <p><a href="/api/complaints/bulk/template.xlsx">Download Excel template</a></p>
+  <form id="f-bulk"><input type="file" name="file" accept=".csv,.xlsx" required> <button class="primary">Upload file</button></form>
+  <p><button id="err-report" class="act alt" hidden>Download error report</button></p>
+  <table id="bulk-res"></table>
+</main>
+<script src="common.js"></script>
+<script src="bulk.js"></script>
+</body></html>
