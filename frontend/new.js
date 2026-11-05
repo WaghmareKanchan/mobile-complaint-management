@@ -2,7 +2,7 @@
 $('#f-new').onsubmit = async e => {
   e.preventDefault();
   try {
-    const c = await post('/complaints', formData(e.target, ['dead_on_arrival', 'customer_caused']));
+    const c = await post('/complaints');
     let text = c.error_code ? `Complaint #${c.id} is on hold (${c.error_code}).` : `Complaint #${c.id} registered.`;
     let bad = false;
     const files = $('#new-files').files;
