@@ -21,3 +21,18 @@ button.primary,.act{background:#0e6e6e;color:#fff;border:0;padding:.55rem 1rem;b
 .facts{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.6rem;margin:.5rem 0}
 .facts div{background:#f4f6f8;border:1px solid #cbd2da;border-radius:4px;padding:.4rem .6rem}
 .facts small{display:block}.facts b{word-break:break-word}
+/* multi-page navigation */
+nav{display:flex;flex-wrap:wrap;gap:.25rem}
+nav a{color:#b9c4cf;padding:.5rem .8rem;border-radius:4px;text-decoration:none}
+nav a:hover{background:#2a3644;color:#fff}
+nav a.on{background:#fff;color:#1b2530;font-weight:600}
+nav a:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.back{display:inline-block;margin-bottom:1rem;color:#0e6e6e;font-weight:600;text-decoration:none}
+.back:hover{text-decoration:underline}
+.narrow{max-width:860px}
+a.act{display:inline-block;text-decoration:none}
+h2{margin:.2rem 0 .8rem}
+
+/* fix: inputs must be allowed to shrink so the Generate button is never covered */
+input,select,textarea{min-width:0}
+label>input:not([type=checkbox]):not([type=file]),label>select,label>textarea{width:100%}

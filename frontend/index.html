@@ -1,45 +1,21 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Service Desk: Phone Complaints</title>
+<title>Complaints · Phone complaints</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700&display=swap">
 <link rel="stylesheet" href="style.css">
-<style>:root{--paper:#edeff2;--ink:#1b2530;--panel:#fff;--line:#cbd2da;--accent:#0e6e6e;--bad:#b3261e;--warn:#9a5b00;--ok:#1d6b3a}</style>
 </head>
-<body>
-<header><h1>Phone complaints</h1>
-<nav><button data-tab="list" class="on">Complaints</button><button data-tab="new">New complaint</button>
-<button data-tab="bulk">Bulk upload</button><button data-tab="dev">Manufacturing DB</button></nav></header>
+<body data-page="list">
+<header id="top"></header>
 <div id="msg" role="status"></div>
 <main>
-<section id="list" class="tab"><div class="split"><div><table id="tbl"><thead><tr><th>#</th><th>Customer</th><th>IMEI</th><th>Status</th><th>Priority</th></tr></thead><tbody></tbody></table></div>
-<aside id="detail"><p class="empty">Select a complaint to see its history and next step.</p></aside></div></section>
-
-<section id="new" class="tab" hidden><form id="f-new" class="grid">
-<label>Customer name<input name="customer_name" required></label><label>Phone (10 digits)<input name="phone" required inputmode="numeric" pattern="[0-9]{10}" minlength="10" maxlength="10" title="Enter exactly 10 digits" oninput="this.value=this.value.replace(/\D/g,'')"></label>
-<label>IMEI (15 digits)<input name="imei" required maxlength="15"></label><label>Serial<input name="serial"></label>
-<label class="wide">Issue<textarea name="issue" required></textarea></label>
-<label class="wide">Photos / videos (optional)<input type="file" id="new-files" multiple accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"></label>
-<label class="chk"><input type="checkbox" name="dead_on_arrival"> Dead on arrival (within 7 days)</label>
-<label class="chk"><input type="checkbox" name="customer_caused"> Customer-caused damage (cracked, liquid, tampered)</label>
-<button class="primary">Register complaint</button></form></section>
-
-<section id="bulk" class="tab" hidden><p>Download the template, fill one row per phone, then upload it.</p>
-<p><a href="/api/complaints/bulk/template.xlsx">Download Excel template</a> | <a href="/api/complaints/bulk/template" download="complaints_template.csv">CSV template</a></p>
-<form id="f-bulk"><input type="file" name="file" accept=".csv,.xlsx" required><button class="primary">Upload file</button></form>
-<p><button id="err-report" class="act alt" hidden>Download error report</button></p><table id="bulk-res"></table></section>
-
-<section id="dev" class="tab" hidden><form id="f-dev" class="grid">
-<label>IMEI
-  <span style="display:flex;gap:.5rem">
-    <input name="imei" id="dev-imei" required maxlength="15" style="flex:1">
-    <button type="button" id="gen-imei" class="act alt">Generate</button>
-  </span>
-</label>
-<label>Serial<input name="serial" required></label>
-<label>Model<input name="model" required></label>
-<label>Sale / activation date<input type="date" name="sale_date" required></label>
-<label>Warranty months<input type="number" name="warranty_months" value="12"></label>
-<label class="chk"><input type="checkbox" name="blacklisted"> Blacklisted or stolen</label>
-<button class="primary">Add device</button></form><table id="dev-tbl"></table></section>
-</main><script src="app.js"></script></body></html>
+  <h2>Complaints</h2>
+  <p><small>Click a complaint to open its page with history, photos and the next step.</small></p>
+  <table id="tbl">
+    <thead><tr><th>#</th><th>Customer</th><th>IMEI</th><th>Status</th><th>Priority</th><th>Batch</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</main>
+<script src="common.js"></script>
+<script src="complaints.js"></script>
+</body></html>
