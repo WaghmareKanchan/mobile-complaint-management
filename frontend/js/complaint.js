@@ -7,7 +7,9 @@ const REPL = [['new_imei', 'imei', 'New IMEI'], ['new_serial', 'text', 'New seri
 const FB = [['rating', 'number', 'Rating 1-5 (optional)'], ['comment', 'text', 'Comment (optional)']];
 // statuses where "Go back one step" is offered (the server checks again)
 const BACK_STATUSES = ['TRIAGED', 'DIAGNOSING', 'QUOTE_PENDING', 'QUOTE_SENT', 'REPAIRING', 'QC_PASSED',
-  'REPLACEMENT_PENDING', 'REPLACEMENT_APPROVED', 'DISPATCHED', 'DELIVERED'];
+  'REPLACEMENT_PENDING', 'REPLACEMENT_APPROVED', 'DISPATCHED', 'DELIVERED', 'CLOSED'];
+// form field -> complaint property, used to pre-fill a step when you come back to it
+const PREFILL = { amount: 'quote_amount', rating: 'feedback_rating', comment: 'feedback_text', collect_old: 'old_phone_collected' };
 const ACTIONS = {
   FIRST_LEVEL_HELP: [['Problem solved', 'guidance', { solved: true }], ['Not solved: triage', 'triage', {}, [['issue_code', 'text', 'Issue code'], ['priority', P, 'Priority']]]],
   FAST_TRACK: [['Approve replacement', 'replacement', {}, REPL]],
@@ -50,11 +52,10 @@ async function load() {
     <form id="f-up" class="sub"><input type="file" id="up-file" multiple required accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"><button class="act alt">Upload</button></form>
     <h3>History</h3><ol class="hist">${c.history.map(h => `<li>${chip(h.status)} <small>${fmt(h.at)}</small><br>${esc(h.note)}</li>`).join('')}</ol>`;
   document.querySelectorAll('.actions .act').forEach(b => b.onclick = () => runAction(c, acts[+b.dataset.i]));
-
   const backBtn = $('#btn-back');
   if (backBtn) backBtn.onclick = async () => {
     const warn = c.status === 'REPLACEMENT_APPROVED' ? ' The new phone will also be removed from the Manufacturing DB.' : '';
-    if (!confirm('Go back one step? The last step will be undone and what you entered in it will be cleared.' + warn)) return;
+    if (!confirm('Go back one step? The last step will be undone. What you entered stays in the form so you can change it.' + warn)) return;
     try {
       const r = await post(`/complaints/${c.id}/back`, {});
       say('Went back to ' + r.status.replace(/_/g, ' ') + '. You can enter that step again.'); load();
@@ -75,9 +76,14 @@ function runAction(c, [label, path, fixed, fields]) {
   $('#sub').innerHTML = `<form class="sub">${fields.map(([n, t, l]) => Array.isArray(t)
     ? `<label>${l}<select name="${n}">${t.map(o => `<option>${o}</option>`).join('')}</select></label>`
     : t === 'checkbox' ? `<label class="chk"><input type="checkbox" name="${n}"> ${l}</label>`
-    : t === 'imei' ? `<label>${l}<span style="display:flex;gap:.5rem"><input name="${n}" required maxlength="15" style="flex:1"><button type="button" class="act alt" data-gen="${n}">Generate IMEI</button></span></label>`
+    : t === 'imei' ? `<label>${l}<span class="imei-row"><input name="${n}" required maxlength="15"><button type="button" class="act alt" data-gen="${n}">Generate IMEI</button></span></label>`
     : `<label>${l}<input name="${n}" type="${t}" ${/optional/.test(l) ? '' : 'required'}></label>`).join('')}<button class="act">${label}</button></form>`;
   document.querySelectorAll('#sub [data-gen]').forEach(b => b.onclick = () => { $('#sub input[name="' + b.dataset.gen + '"]').value = generateImei(); });
+  fields.forEach(([n, t]) => {                       // pre-fill with what was entered before
+    const v = c[PREFILL[n] || n], el = $('#sub form').elements[n];
+    if (!el || v === null || v === undefined) return;
+    if (t === 'checkbox') el.checked = !!v; else el.value = v;
+  });
   $('#sub form').onsubmit = e => {
     e.preventDefault(); const body = { ...fixed };
     fields.forEach(([n, t]) => { const el = e.target[n]; body[n] = t === 'checkbox' ? el.checked : t === 'number' ? (el.value === '' ? null : +el.value) : (el.value || null); });

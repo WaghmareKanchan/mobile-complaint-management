@@ -11,9 +11,18 @@ $('#gen-imei').onclick = () => { $('#dev-imei').value = generateImei(); };
 
 $('#f-dev').onsubmit = async e => {
   e.preventDefault();
+  const f = e.target;
+  const body = {
+    imei: f.imei.value.trim(),
+    serial: f.serial.value.trim(),
+    model: f.model.value.trim(),
+    sale_date: f.sale_date.value,
+    warranty_months: +f.warranty_months.value,
+  };
+  console.log('sending', body);
   try {
-    await post('/devices', { ...formData, warranty_months: +e.target.warranty_months.value });
-    say('Device added.'); e.target.reset(); loadDevices();
+    await post('/devices', body);
+    say('Device added.'); f.reset(); loadDevices();
   } catch (err) { sayErr(err); }
 };
 
