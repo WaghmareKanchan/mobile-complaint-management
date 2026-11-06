@@ -144,3 +144,58 @@ def feedback(db, c, satisfied, rating=None, comment=None):
         raise FlowError(409, "E07", "Reopen window (7 days) has passed")
     else: move(db, c, "REOPENED", "Not satisfied: back to diagnosis")
     db.commit(); return c
+    
+# ---------- Go back one step (undo a mistake) ----------
+# current status -> the statuses it can have come from.
+# We go back to the MOST RECENT one of these in the complaint history.
+BACK_FROM = {
+    "TRIAGED": ["FIRST_LEVEL_HELP"],
+    "DIAGNOSING": ["TRIAGED"],
+    "QUOTE_PENDING": ["DIAGNOSING", "REOPENED"],
+    "QUOTE_SENT": ["QUOTE_PENDING"],
+    "REPAIRING": ["DIAGNOSING", "REOPENED", "QUOTE_SENT"],
+    "QC_PASSED": ["REPAIRING"],
+    "REPLACEMENT_PENDING": ["DIAGNOSING", "REOPENED"],
+    "REPLACEMENT_APPROVED": ["FAST_TRACK", "REPLACEMENT_PENDING"],
+    "DISPATCHED": ["QC_PASSED", "REPLACEMENT_APPROVED"],
+    "DELIVERED": ["DISPATCHED"],
+}
+
+def previous_status(c):
+    """Status before the current step, or None when this status cannot go back."""
+    for h in reversed(c.history):
+        if h.status in BACK_FROM.get(c.status, ()):
+            return h.status
+    return None
+
+def go_back(db, c, reason=None):
+    prev = previous_status(c)
+    if prev is None:
+        raise FlowError(409, "E14", f"Cannot go back from status {c.status}")
+    undone = c.status
+    # clear what the undone step saved, so it can be entered again
+    if undone == "TRIAGED":
+        c.issue_code = c.priority = c.sla_due = c.pickup_type = None
+    elif undone == "DIAGNOSING":
+        recv = next((h for h in reversed(c.history) if h.status == "DIAGNOSING"
+                     and (h.note or "").startswith(("Customer damage found", "Phone received"))), None)
+        if recv and recv.note.startswith("Customer damage found"):
+            c.warranty_status = "IN_WARRANTY"      # undo the customer-damage re-classification
+        c.job_card_no = c.condition_notes = None
+    elif undone == "QUOTE_SENT":
+        c.quote_amount = None
+    elif undone == "REPLACEMENT_APPROVED":
+        if c.new_imei:
+            if db.query(Complaint).filter(Complaint.imei == c.new_imei).count():
+                raise FlowError(409, "E15", "The new phone already has a complaint, so the replacement cannot be undone")
+            db.query(Device).filter_by(imei=c.new_imei).delete()   # remove the new phone from the Manufacturing DB
+        c.new_imei, c.old_phone_collected = None, False
+    elif undone == "DISPATCHED":
+        c.tracking_no = c.handover_otp = None
+    elif undone == "DELIVERED":
+        c.delivered_at = None
+    note = f"Moved back from {undone} to {prev}"
+    if reason:
+        note += f": {reason}"
+    move(db, c, prev, note)
+    db.commit(); return c

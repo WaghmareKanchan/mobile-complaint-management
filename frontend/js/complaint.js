@@ -5,6 +5,9 @@ const id = Number(new URLSearchParams(location.search).get('id'));
 const P = ['Critical', 'High', 'Medium', 'Low'];
 const REPL = [['new_imei', 'imei', 'New IMEI'], ['new_serial', 'text', 'New serial'], ['collect_old', 'checkbox', 'Old phone collected']];
 const FB = [['rating', 'number', 'Rating 1-5 (optional)'], ['comment', 'text', 'Comment (optional)']];
+// statuses where "Go back one step" is offered (the server checks again)
+const BACK_STATUSES = ['TRIAGED', 'DIAGNOSING', 'QUOTE_PENDING', 'QUOTE_SENT', 'REPAIRING', 'QC_PASSED',
+  'REPLACEMENT_PENDING', 'REPLACEMENT_APPROVED', 'DISPATCHED', 'DELIVERED'];
 const ACTIONS = {
   FIRST_LEVEL_HELP: [['Problem solved', 'guidance', { solved: true }], ['Not solved: triage', 'triage', {}, [['issue_code', 'text', 'Issue code'], ['priority', P, 'Priority']]]],
   FAST_TRACK: [['Approve replacement', 'replacement', {}, REPL]],
@@ -39,6 +42,7 @@ async function load() {
       .filter(([, v]) => v !== null && v !== undefined && v !== '').map(([k, v]) => `<div><small>${k}</small><b>${esc(v)}</b></div>`).join('')}</div>
     <div class="actions">${acts.map((a, i) => `<button class="act ${i ? 'alt' : ''}" data-i="${i}">${a[0]}</button>`).join('') || '<small>No further steps.</small>'}</div>
     <div id="sub"></div>
+    ${BACK_STATUSES.includes(c.status) ? '<div class="undo"><button type="button" id="btn-back" class="act alt">&larr; Go back one step</button> <small>Entered something wrong? Undo the last step and enter it again.</small></div>' : ''}
     <h3>Photos / videos</h3>
     <div class="files">${c.files.map(f => f.kind === 'photo'
       ? `<a href="/api/complaints/${c.id}/files/${f.id}" target="_blank"><img src="/api/complaints/${c.id}/files/${f.id}" alt="${esc(f.original_name)}" title="${esc(f.stage)}"></a>`
@@ -46,6 +50,16 @@ async function load() {
     <form id="f-up" class="sub"><input type="file" id="up-file" multiple required accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"><button class="act alt">Upload</button></form>
     <h3>History</h3><ol class="hist">${c.history.map(h => `<li>${chip(h.status)} <small>${fmt(h.at)}</small><br>${esc(h.note)}</li>`).join('')}</ol>`;
   document.querySelectorAll('.actions .act').forEach(b => b.onclick = () => runAction(c, acts[+b.dataset.i]));
+
+  const backBtn = $('#btn-back');
+  if (backBtn) backBtn.onclick = async () => {
+    const warn = c.status === 'REPLACEMENT_APPROVED' ? ' The new phone will also be removed from the Manufacturing DB.' : '';
+    if (!confirm('Go back one step? The last step will be undone and what you entered in it will be cleared.' + warn)) return;
+    try {
+      const r = await post(`/complaints/${c.id}/back`, {});
+      say('Went back to ' + r.status.replace(/_/g, ' ') + '. You can enter that step again.'); load();
+    } catch (e) { sayErr(e); }
+  };
   $('#f-up').onsubmit = async e => {
     e.preventDefault();
     try { await uploadFiles(c.id, $('#up-file').files); say('File uploaded.'); load(); } catch (err) { sayErr(err); }
