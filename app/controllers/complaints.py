@@ -49,6 +49,7 @@ action("quote-decision", s.DecisionIn, w.quote_decision)
 action("repair", s.RepairIn, w.finish_repair)
 action("replacement", s.ReplacementIn, w.approve_replacement)
 action("dispatch", s.DispatchIn, w.dispatch)
+action("back", s.BackIn, w.go_back)
 action("feedback", s.FeedbackIn, w.feedback)
 action("handover", s.HandoverIn, w.handover)
 
