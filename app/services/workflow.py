@@ -144,3 +144,61 @@ def feedback(db, c, satisfied, rating=None, comment=None):
         raise FlowError(409, "E07", "Reopen window (7 days) has passed")
     else: move(db, c, "REOPENED", "Not satisfied: back to diagnosis")
     db.commit(); return c
+    
+# ---------- Go back one step (undo a mistake) ----------
+# current status -> the statuses it can have come from.
+# We go back to the MOST RECENT one of these in the complaint history.
+BACK_FROM = {
+    "TRIAGED": ["FIRST_LEVEL_HELP"],
+    "DIAGNOSING": ["TRIAGED"],
+    "QUOTE_PENDING": ["DIAGNOSING", "REOPENED"],
+    "QUOTE_SENT": ["QUOTE_PENDING"],
+    "REPAIRING": ["DIAGNOSING", "REOPENED", "QUOTE_SENT"],
+    "QC_PASSED": ["REPAIRING"],
+    "REPLACEMENT_PENDING": ["DIAGNOSING", "REOPENED"],
+    "REPLACEMENT_APPROVED": ["FAST_TRACK", "REPLACEMENT_PENDING"],
+    "DISPATCHED": ["QC_PASSED", "REPLACEMENT_APPROVED"],
+    "DELIVERED": ["DISPATCHED"],
+    # a CLOSED complaint can be re-opened by going back to where it was closed from
+    "CLOSED": ["FIRST_LEVEL_HELP", "DIAGNOSING", "REOPENED", "DELIVERED"],
+}
+
+def previous_status(c):
+    """Status before the current step, or None when this status cannot go back."""
+    for h in reversed(c.history):
+        if h.status in BACK_FROM.get(c.status, ()):
+            return h.status
+    return None
+
+def go_back(db, c, reason=None):
+    prev = previous_status(c)
+    if prev is None:
+        raise FlowError(409, "E14", f"Cannot go back from status {c.status}")
+    undone = c.status
+    # What the person typed in the undone step is KEPT (the page shows it and pre-fills the form),
+    # so it can be corrected. Only values that must be created again are reset.
+    was = ""
+    if undone == "DIAGNOSING":
+        recv = next((h for h in reversed(c.history) if h.status == "DIAGNOSING"
+                     and (h.note or "").startswith(("Customer damage found", "Phone received"))), None)
+        if recv and recv.note.startswith("Customer damage found"):
+            c.warranty_status = "IN_WARRANTY"      # undo the customer-damage re-classification
+    elif undone == "QUOTE_SENT":
+        was = f" (quote was {c.quote_amount})"
+    elif undone == "REPLACEMENT_APPROVED":
+        if c.new_imei:
+            if db.query(Complaint).filter(Complaint.imei == c.new_imei).count():
+                raise FlowError(409, "E15", "The new phone already has a complaint, so the replacement cannot be undone")
+            dev = db.query(Device).filter_by(imei=c.new_imei).first()
+            was = f" (new IMEI was {c.new_imei}" + (f", serial {dev.serial})" if dev else ")")
+            db.query(Device).filter_by(imei=c.new_imei).delete()   # remove the new phone from the Manufacturing DB
+    elif undone == "DISPATCHED":
+        was = f" (courier no. was {c.tracking_no})"
+        c.handover_otp = None                      # a new OTP is made when it is dispatched again
+    elif undone == "DELIVERED":
+        c.delivered_at = None
+    note = f"Moved back from {undone} to {prev}{was}"
+    if reason:
+        note += f": {reason}"
+    move(db, c, prev, note)
+    db.commit(); return c

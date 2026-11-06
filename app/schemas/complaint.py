@@ -30,6 +30,9 @@ class ReplacementIn(BaseModel):
     new_imei: str
     new_serial: str
     collect_old: bool = True
+    
+class BackIn(BaseModel):
+    reason: Optional[str] = None
 
 class DispatchIn(BaseModel): tracking_no: str
 
